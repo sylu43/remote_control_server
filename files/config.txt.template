@@ -1,0 +1,5 @@
+[GPIO]
+up = ${your pin}
+down = ${your pin}
+stop = ${your pin}
+lock = ${your pin}
