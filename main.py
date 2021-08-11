@@ -24,6 +24,7 @@ gpioDict = conf['GPIO']
 signature is signed '/api/$path$nonce$stringify(body)'
 '''
 
+#op
 @app.post("/gate_op")
 def gateOp():
     if request.is_json:
@@ -36,12 +37,18 @@ def gateOp():
             return {"error": "Unknown operation"}, 400
     return {"error": "Request must be JSON"}, 415
 
+#name zone time
 @app.post("/register")
 def register():
     if request.is_json:
         info = request.get_json()
-        DB.addUser(util.jsonToTuple(info))
-        return info, 201
+        if DB.findUser(info['name']):
+            return {"error": "user exists"}, 409
+        try:
+            DB.registerUser(info)
+        except:
+            return {"error": "sqlite error"}, 500
+        return {"info": "registerd"}, 201
     return {"error": "Request must be JSON"}, 415
 
 
