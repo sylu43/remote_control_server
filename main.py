@@ -1,10 +1,11 @@
 from flask import Flask, request, jsonify
-import util.db
-import util.util
+import util.db as db
+import util.util as util
+import util.gpio as gpio
 
 app = Flask(__name__)
-db = util.db.DB()
-conf = util.util.getConf()
+DB = db.DB()
+conf = util.getConf()
 gpioDict = conf['GPIO']
 
 '''
@@ -16,7 +17,7 @@ gpioDict = conf['GPIO']
     'header':{
         context_type,
         nonce
-        key
+        token
         signature
     }
 }
@@ -29,7 +30,7 @@ def gateOp():
         op = request.get_json()
         pin = gpioDict[op['op']]
         if pin != None:
-            util.util.gateOp()
+            gpio.gateOp(pin)
             return {}, 200
         else:
             return {"error": "Unknown operation"}, 400
@@ -39,7 +40,7 @@ def gateOp():
 def register():
     if request.is_json:
         info = request.get_json()
-        db.addUser(util.util.jsonToTuple(info))
+        DB.addUser(util.jsonToTuple(info))
         return info, 201
     return {"error": "Request must be JSON"}, 415
 

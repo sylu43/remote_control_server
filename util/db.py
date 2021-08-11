@@ -15,7 +15,7 @@ class DB():
         #check users table
         self.cur.execute('''select count(name) from sqlite_master where type='table' and name='users' ''')
         if self.cur.fetchone()[0] == 0:
-            self.cur.execute('''create table users(name, zone, key,secret)''')
+            self.cur.execute('''create table users(name, zone, token, secret)''')
 
         #check registers table
         self.cur.execute('''select count(name) from sqlite_master where type='table' and name='registers' ''')
