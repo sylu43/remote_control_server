@@ -31,7 +31,7 @@ class DB():
 
     def getUser(self, key):
         self.cur.execute('''select * from users where key = '%s' ''' % key)
-        return self.cur.fetchall()
+        return self.cur.fetchone()
 
     def registerUser(self, info):
         now = datetime.datetime.utcnow()
@@ -41,7 +41,7 @@ class DB():
             'exp': exp,
             'iat': now,
             'sub': info['name']
-        }, secret, algorithm = "HS256")
+        }, secret, algorithm = "HS384")
         cmd = '''insert into users values ('%s', '%s', '%s', '%s', '%s', '%s')''' % (info['name'], info['zone'], 0, (exp + datetime.timedelta(hours=8)).timestamp(), token, secret)
         self.cur.execute(cmd)
         self.con.commit()
@@ -51,13 +51,19 @@ class DB():
         return otp
 
     def findUser(self, name):
-        self.cur.execute('''select count(*) from users where name=='%s' ''' % name)
+        self.cur.execute('''select count(*) from users where name == '%s' ''' % name)
         if self.cur.fetchone()[0] == 0:
             return False
         return True
 
+    def activateUser(self, name):
+        self.cur.execute('''select * from users where name == '%s' ''' % name)
+        user = self.cur.fetchone()
+        self.cur.execute('''update users set activated = 1 where name == '%s' ''' % name)
+        return user
+
     def autoDestroy(self, name):
         if self.otpList.get(name) !=None:
             otpList.pop(name)
-            self.cur.execute('''delete from users where name=='%s' ''' % name)
+            self.cur.execute('''delete from users where name == '%s' ''' % name)
             self.con.commit()

@@ -6,3 +6,5 @@ def getConf():
     parser = configparser.ConfigParser()
     parser.read(configPath)
     return parser
+
+
