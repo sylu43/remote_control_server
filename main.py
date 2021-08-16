@@ -37,7 +37,7 @@ def gateOp():
         pin = gpioDict[data['op']]
         if pin != None:
             gpio.gateOp(pin)
-            return {}, 200
+            return {"OK": data['op']}, 200
         else:
             return {"error": "Unknown operation"}, 400
     return {"error": "Request must be JSON"}, 415
@@ -56,7 +56,7 @@ def register():
         if DB.findUser(data['name']):
             return {"error": "user exists"}, 409
         try:
-            DB.registerUser(data)
+            otp = DB.registerUser(data)
         except:
             return {"error": "sqlite error"}, 500
         return {"info": "registerd"}, 201
@@ -74,13 +74,16 @@ def checkin():
         if DB.findUser(data['name']):
             try:
                 user = DB.activateUser(data['name'])
+                print(user)
             except:
                 return {"error": "sqlite error"}, 500
-            return {"data": jwt.encode({
+            s = {"data": jwt.encode({
                 'token': user[4],
                 'secret': user[5]
-            }, DB.otpList.get(user[0]), algorithm='HS384')}, 201
-        return {"info": "registerd"}, 201
+            }, DB.otpList.get(user[0]), algorithm='HS384').decode()}
+            print(s)
+            return s, 201
+        return {"info": "not registerd"}, 201
     return {"error": "Request must be JSON"}, 415
 
 

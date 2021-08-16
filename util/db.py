@@ -42,11 +42,12 @@ class DB():
             'iat': now,
             'sub': info['name']
         }, secret, algorithm = "HS384")
-        cmd = '''insert into users values ('%s', '%s', '%s', '%s', '%s', '%s')''' % (info['name'], info['zone'], 0, (exp + datetime.timedelta(hours=8)).timestamp(), token, secret)
+        cmd = '''insert into users values ('%s', '%s', %s, %s, '%s', '%s')''' % (info['name'], info['zone'], 0, (exp + datetime.timedelta(hours=8)).timestamp(), token.decode(), secret)
+        print(cmd)
         self.cur.execute(cmd)
         self.con.commit()
         otp = random.random() * 100000
-        self.otpList[info['name']] = otp
+        self.otpList[info['name']] = str(otp)
         Timer(self.autoDestroyTime, self.autoDestroy, [info['name']]).start()
         return otp
 
