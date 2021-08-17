@@ -59,7 +59,7 @@ def register():
             otp = DB.registerUser(data)
         except:
             return {"error": "sqlite error"}, 500
-        return {"info": "registerd"}, 201
+        return {"info": "registerd", "otp": otp}, 201
     return {"error": "Request must be JSON"}, 415
 
 '''
@@ -71,19 +71,13 @@ def register():
 def checkin():
     if request.is_json:
         data = request.get_json()
-        if DB.findUser(data['name']):
+        if DB.toCheckin(data['name']):
             try:
-                user = DB.activateUser(data['name'])
-                print(user)
+                response = DB.activateUser(data['name'])
             except:
                 return {"error": "sqlite error"}, 500
-            s = {"data": jwt.encode({
-                'token': user[4],
-                'secret': user[5]
-            }, DB.otpList.get(user[0]), algorithm='HS384').decode()}
-            print(s)
-            return s, 201
-        return {"info": "not registerd"}, 201
+            return response, 201
+        return {"info": "not register or activated"}, 403
     return {"error": "Request must be JSON"}, 415
 
 

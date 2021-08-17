@@ -4,6 +4,7 @@ import datetime
 import jwt
 import binascii
 import random
+from math import floor
 from threading import Timer
 
 class DB():
@@ -41,13 +42,12 @@ class DB():
             'exp': exp,
             'iat': now,
             'sub': info['name']
-        }, secret, algorithm = "HS384")
+        }, secret, algorithm = "HS256")
         cmd = '''insert into users values ('%s', '%s', %s, %s, '%s', '%s')''' % (info['name'], info['zone'], 0, (exp + datetime.timedelta(hours=8)).timestamp(), token.decode(), secret)
-        print(cmd)
         self.cur.execute(cmd)
         self.con.commit()
-        otp = random.random() * 100000
-        self.otpList[info['name']] = str(otp)
+        otp = str(floor(random.random()*1000000)).zfill(6)
+        self.otpList[info['name']] = otp
         Timer(self.autoDestroyTime, self.autoDestroy, [info['name']]).start()
         return otp
 
@@ -57,14 +57,32 @@ class DB():
             return False
         return True
 
+    def toCheckin(self, name):
+        self.cur.execute('''select * from users where name == '%s' ''' % name)
+        user = self.cur.fetchone()
+        if user == None:
+            return False
+        if user[2] == 1:
+            return False
+        return True
+
+
     def activateUser(self, name):
         self.cur.execute('''select * from users where name == '%s' ''' % name)
         user = self.cur.fetchone()
         self.cur.execute('''update users set activated = 1 where name == '%s' ''' % name)
-        return user
+        self.con.commit()
+        response =  {"data": jwt.encode({
+            'token': user[4],
+            'secret': user[5]
+        }, self.otpList.get(user[0]), algorithm='HS256').decode()}
+        print(self.otpList)
+        self.otpList.pop(name)
+
+        return response
 
     def autoDestroy(self, name):
-        if self.otpList.get(name) !=None:
+        if self.otpList.get(name) != None:
             otpList.pop(name)
             self.cur.execute('''delete from users where name == '%s' ''' % name)
             self.con.commit()
