@@ -3,6 +3,8 @@ import util.db as db
 import util.util as util
 import util.gpio as gpio
 import jwt
+import hmac
+import binascii
 
 app = Flask(__name__)
 DB = db.DB()
@@ -34,6 +36,13 @@ signature is signed '/api/$path$nonce$stringify(body)'
 def gateOp():
     if request.is_json:
         data = request.get_json()
+        headers = request.headers
+        user = DB.getUser(headers['token'])
+        nonce = headers['nonce']
+        HMAC = hmac.new(bytearray.fromhex(user[5]), digestmod='sha256')
+        HMAC.update(("/gate_op%s%s" % (nonce, str(request.json).replace(" ","").replace("\'","\""))).encode('utf-8'))
+        if binascii.hexlify(HMAC.digest()).decode() != headers['Signature']:
+            return {"error": "not authenticated"}, 403
         pin = gpioDict[data['op']]
         if pin != None:
             gpio.gateOp(pin)

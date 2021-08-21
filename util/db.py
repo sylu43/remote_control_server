@@ -30,8 +30,8 @@ class DB():
         if self.cur.fetchone()[0] == 0:
             self.cur.execute('''create table logs(event text, user text, op text, time real)''')
 
-    def getUser(self, key):
-        self.cur.execute('''select * from users where key = '%s' ''' % key)
+    def getUser(self, token):
+        self.cur.execute('''select * from users where token = '%s' ''' % token)
         return self.cur.fetchone()
 
     def registerUser(self, info):
@@ -76,9 +76,7 @@ class DB():
             'token': user[4],
             'secret': user[5]
         }, self.otpList.get(user[0]), algorithm='HS256').decode()}
-        print(self.otpList)
         self.otpList.pop(name)
-
         return response
 
     def autoDestroy(self, name):
