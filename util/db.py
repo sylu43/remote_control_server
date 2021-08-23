@@ -24,7 +24,7 @@ class DB():
         #check users table
         self.cur.execute('''select count(name) from sqlite_master where type='table' and name='users' ''')
         if self.cur.fetchone()[0] == 0:
-            self.cur.execute('''create table users(name text, zone text, activated int2, expireDate real, token text, secret text)''')
+            self.cur.execute('''create table users(name text, zone text, activated int2, enabled int2, expireDate real, token text, secret text)''')
 
         #check logs table
         self.cur.execute('''select count(name) from sqlite_master where type='table' and name='logs' ''')
@@ -48,7 +48,7 @@ class DB():
             'iat': now,
             'sub': json['name']
         }, secret, algorithm = "HS256")
-        cmd = '''insert into users values ('%s', '%s', %s, %s, '%s', '%s')''' % (json['name'], json['zone'], 0, (exp + datetime.timedelta(hours=8)).timestamp(), token.decode(), secret)
+        cmd = '''insert into users values ('%s', '%s', %d, %d, %s, '%s', '%s')''' % (json['name'], json['zone'], 0, 1, (exp + datetime.timedelta(hours=8)).timestamp(), token.decode(), secret)
         self.cur.execute(cmd)
         self.con.commit()
         otp = str(floor(random.random()*1000000)).zfill(6)
@@ -83,10 +83,19 @@ class DB():
             self.cur.execute('''delete from users where name == '%s' ''' % name)
             self.con.commit()
 
-    def verifyAuthentication(self, header, body):
+    def verifyEnabledUser(self, header, body):
         user = self.getUserByToken(header['token'])
-        if(user == None):
+        if not user[3] or user == None:
             return False
+        return verifyAuthentication(header, body, user)
+
+    def verifyAdmin(self, header, body, user):
+        user = self.getUserByToken(header['token'])
+        if user[2] != 'admin' or user == None:
+            return False
+        return verifyAuthentication(header, body, user)
+
+    def verifyAuthentication(self, header, body, user):
         nonce = header['nonce']
         HMAC = hmac.new(bytearray.fromhex(user[5]), digestmod='sha256')
         HMAC.update(("/gate_op%s%s" % (nonce, str(body).replace(" ","").replace("\'","\""))).encode('utf-8'))

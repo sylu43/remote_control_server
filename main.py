@@ -18,8 +18,8 @@ gpioDict = conf['GPIO']
 def gateOp():
     if request.is_json:
         op = request.json['op']
-        if not DB.verifyAuthentication(request.headers, request.json):
-            return {"error": "Authentication failed."}, 403
+        if not DB.verifyEnabledUser(request.headers, request.json):
+            return {"error": "Authentication failed or not enabled."}, 403
         pin = gpioDict[op]
         if pin != None:
             gpio.gateOp(pin)
