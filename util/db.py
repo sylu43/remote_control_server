@@ -40,15 +40,12 @@ class DB():
         return self.cur.fetchone()
 
     def registerUser(self, json):
-        now = datetime.datetime.utcnow()
-        exp = now + datetime.timedelta(seconds=json['time'])
         secret = binascii.hexlify(os.urandom(24)).decode()
         token = jwt.encode({
-            'exp': exp,
-            'iat': now,
+            'exp': json['time'],
             'sub': json['name']
         }, secret, algorithm = "HS256")
-        cmd = '''insert into users values ('%s', '%s', %d, %d, %s, '%s', '%s')''' % (json['name'], json['zone'], 0, 1, (exp + datetime.timedelta(hours=8)).timestamp(), token.decode(), secret)
+        cmd = '''insert into users values ('%s', '%s', %d, %d, %s, '%s', '%s')''' % (json['name'], json['zone'], 0, 1, json['time'], token.decode(), secret)
         self.cur.execute(cmd)
         self.con.commit()
         otp = str(floor(random.random()*1000000)).zfill(6)
@@ -71,8 +68,8 @@ class DB():
         self.cur.execute('''select * from users where name == '%s' ''' % name)
         user = self.cur.fetchone()
         response =  {"data": jwt.encode({
-            'token': user[4],
-            'secret': user[5]
+            'token': user[5],
+            'secret': user[6]
         }, self.otpList.get(user[0]), algorithm='HS256').decode()}
         self.otpList.pop(name)
         return response
@@ -83,23 +80,28 @@ class DB():
             self.cur.execute('''delete from users where name == '%s' ''' % name)
             self.con.commit()
 
-    def verifyEnabledUser(self, header, body):
-        user = self.getUserByToken(header['token'])
+    def verifyEnabledUser(self, request, path):
+        user = self.getUserByToken(request.headers['token'])
         if not user[3] or user == None:
             return False
-        return verifyAuthentication(header, body, user)
+        return self.verifyAuthentication(request, user, path)
 
-    def verifyAdmin(self, header, body, user):
-        user = self.getUserByToken(header['token'])
-        if user[2] != 'admin' or user == None:
+    def verifyAdmin(self, request, path):
+        user = self.getUserByToken(request.headers['token'])
+        if user[1] != 'admin' or user == None:
             return False
-        return verifyAuthentication(header, body, user)
+        return self.verifyAuthentication(request, user, path)
 
-    def verifyAuthentication(self, header, body, user):
-        nonce = header['nonce']
-        HMAC = hmac.new(bytearray.fromhex(user[5]), digestmod='sha256')
-        HMAC.update(("/gate_op%s%s" % (nonce, str(body).replace(" ","").replace("\'","\""))).encode('utf-8'))
-        if binascii.hexlify(HMAC.digest()).decode() != header['Signature']:
+    def verifyAuthentication(self, request, user, path):
+        nonce = request.headers['nonce']
+        body = {} if request.method == 'GET' else request.json
+        HMAC = hmac.new(bytearray.fromhex(user[6]), digestmod='sha256')
+        HMAC.update(("%s%s%s" % (path, nonce, str(body).replace(" ","").replace("\'","\""))).encode('utf-8'))
+        if binascii.hexlify(HMAC.digest()).decode() != request.headers['Signature']:
             return False
         return True
+
+    def allUsers(self):
+        self.cur.execute('''select * from users ''')
+        return self.cur.fetchall()
 
