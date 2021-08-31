@@ -46,7 +46,7 @@ def register():
         otp = DB.registerUser(json)
     except:
         return {"error": "sqlite error"}, 500
-    return {"info": "registerd", "otp": otp}, 201
+    return {"info": "registered", "otp": otp}, 201
 
 '''
 {
@@ -58,13 +58,13 @@ def checkin():
     if not request.is_json:
         return {"error": "Request must be JSON"}, 415
     name = request.json['name']
-    if DB.toCheckin(name):
-        try:
-            response = DB.activateUser(name)
-        except:
-            return {"error": "sqlite error"}, 500
-        return response, 201
-    return {"info": "not register or activated"}, 403
+    if not DB.toCheckin(name):
+        return {"info": "not registered or activated"}, 403
+    try:
+        response = DB.activateUser(name)
+    except:
+        return {"error": "sqlite error"}, 500
+    return response, 201
 
 @app.get("/list")
 def admin():
@@ -81,4 +81,16 @@ def admin():
         })
     return {"users":users}, 200
 
+@app.post("/delete")
+def delete():
+    if not request.is_json:
+        return {"error": "Request must be JSON"}, 415
+    if not DB.verifyAdmin(request, "/delete"):
+        return {'error': "not admin"}, 403
+    name = request.json['name']
+    try:
+        DB.deleteUser(name)
+    except:
+        return {"error": "sqlite error"}, 500
+    return {"info": "delete"}, 200
 

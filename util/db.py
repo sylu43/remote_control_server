@@ -6,12 +6,13 @@ import hmac
 import binascii
 import random
 from math import floor
-from threading import Timer
+from threading import Timer, Lock
 
 class DB():
 
     con = None
     cur = None
+    lock = Lock()
     otpList = {}
     autoDestroyTime = 1800
 
@@ -32,12 +33,18 @@ class DB():
             self.cur.execute('''create table logs(event text, user text, op text, time real)''')
 
     def getUserByToken(self, token):
+        self.lock.acquire()
         self.cur.execute('''select * from users where token = '%s' ''' % token)
-        return self.cur.fetchone()
+        user = self.cur.fetchone()
+        self.lock.release()
+        return user
 
     def getUserByName(self, name):
+        self.lock.acquire()
         self.cur.execute('''select * from users where token = '%s' ''' % name)
-        return self.cur.fetchone()
+        user = self.cur.fetchone()
+        self.lock.release()
+        return user
 
     def registerUser(self, json):
         secret = binascii.hexlify(os.urandom(24)).decode()
@@ -46,16 +53,20 @@ class DB():
             'sub': json['name']
         }, secret, algorithm = "HS256")
         cmd = '''insert into users values ('%s', '%s', %d, %d, %s, '%s', '%s')''' % (json['name'], json['zone'], 0, 1, json['time'], token.decode(), secret)
+        self.lock.acquire()
         self.cur.execute(cmd)
         self.con.commit()
+        self.lock.release()
         otp = str(floor(random.random()*1000000)).zfill(6)
         self.otpList[json['name']] = otp
         Timer(self.autoDestroyTime, self.autoDestroy, [json['name']]).start()
         return otp
 
     def toCheckin(self, name):
+        self.lock.acquire()
         self.cur.execute('''select * from users where name == '%s' ''' % name)
         user = self.cur.fetchone()
+        self.lock.release()
         if user == None:
             return False
         if user[2] == 1:
@@ -63,10 +74,12 @@ class DB():
         return True
 
     def activateUser(self, name):
+        self.lock.acquire()
         self.cur.execute('''update users set activated = 1 where name == '%s' ''' % name)
         self.con.commit()
         self.cur.execute('''select * from users where name == '%s' ''' % name)
         user = self.cur.fetchone()
+        self.lock.release()
         response =  {"data": jwt.encode({
             'token': user[5],
             'secret': user[6]
@@ -77,8 +90,10 @@ class DB():
     def autoDestroy(self, name):
         if self.otpList.get(name) != None:
             self.otpList.pop(name)
+            self.lock.acquire()
             self.cur.execute('''delete from users where name == '%s' ''' % name)
             self.con.commit()
+            self.lock.release()
 
     def verifyEnabledUser(self, request, path):
         user = self.getUserByToken(request.headers['token'])
@@ -102,6 +117,15 @@ class DB():
         return True
 
     def allUsers(self):
+        self.lock.acquire()
         self.cur.execute('''select * from users ''')
-        return self.cur.fetchall()
+        users = self.cur.fetchall()
+        self.lock.release()
+        return users
+
+    def deleteUser(self, name):
+        self.lock.acquire()
+        self.cur.execute('''delete from users where name == '%s' ''' % name)
+        self.con.commit()
+        self.lock.release()
 
