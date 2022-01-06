@@ -6,15 +6,13 @@ import hmac
 import binascii
 import random
 from math import floor
-from threading import Timer, Lock
+from threading import Lock
 
 class DB():
 
     con = None
     cur = None
     lock = Lock()
-    otpList = {}
-    autoDestroyTime = 1800
 
     def __init__(self):
         DB = 'files/remote_control.db'
@@ -25,87 +23,74 @@ class DB():
         #check users table
         self.cur.execute('''select count(name) from sqlite_master where type='table' and name='users' ''')
         if self.cur.fetchone()[0] == 0:
-            self.cur.execute('''create table users(name text, zone text, activated int2, enabled int2, expireDate real, token text, secret text)''')
+            self.cur.execute('''create table users(name text, zone text, activated int2, expireDate real, token text)''')
 
         #check logs table
         self.cur.execute('''select count(name) from sqlite_master where type='table' and name='logs' ''')
         if self.cur.fetchone()[0] == 0:
             self.cur.execute('''create table logs(event text, user text, op text, time real)''')
 
-    def getUserByToken(self, token):
-        self.lock.acquire()
-        self.cur.execute('''select * from users where token = '%s' ''' % token)
-        user = self.cur.fetchone()
-        self.lock.release()
-        return user
-
     def getUserByName(self, name):
         self.lock.acquire()
-        self.cur.execute('''select * from users where token = '%s' ''' % name)
+        self.cur.execute('''select * from users where name = '%s' ''' % name)
         user = self.cur.fetchone()
         self.lock.release()
         return user
 
     def registerUser(self, json):
-        secret = binascii.hexlify(os.urandom(24)).decode()
-        token = jwt.encode({
-            'exp': json['time'],
-            'sub': json['name']
-        }, secret, algorithm = "HS256")
-        cmd = '''insert into users values ('%s', '%s', %d, %d, %s, '%s', '%s')''' % (json['name'], json['zone'], 0, 1, json['time'], token.decode(), secret)
+        while True:
+            token = str(floor(random.random()*1000000)).zfill(6)
+            if not self.findToken(token):
+                break
+        cmd = '''insert into users values ('%s', '%s', %d, %d, '%s')''' % (json['name'], json['zone'], 0, 0, token)
         self.lock.acquire()
         self.cur.execute(cmd)
         self.con.commit()
         self.lock.release()
-        otp = str(floor(random.random()*1000000)).zfill(6)
-        self.otpList[json['name']] = otp
-        Timer(self.autoDestroyTime, self.autoDestroy, [json['name']]).start()
-        return otp
+        return token
 
-    def toCheckin(self, name):
-        self.lock.acquire()
-        self.cur.execute('''select * from users where name == '%s' ''' % name)
-        user = self.cur.fetchone()
-        self.lock.release()
-        if user == None:
-            return False
-        if user[2] == 1:
-            return False
-        return True
-
-    def activateUser(self, name):
+    def activateUser(self, name, time):
         self.lock.acquire()
         self.cur.execute('''update users set activated = 1 where name == '%s' ''' % name)
         self.con.commit()
         self.cur.execute('''select * from users where name == '%s' ''' % name)
         user = self.cur.fetchone()
         self.lock.release()
-        response =  {"data": jwt.encode({
-            'token': user[5],
-            'secret': user[6]
-        }, self.otpList.get(user[0]), algorithm='HS256').decode()}
-        self.otpList.pop(name)
-        return response
+        if user != None and user[2] == 1:
+            return True
+        return False
 
-    def autoDestroy(self, name):
-        if self.otpList.get(name) != None:
-            self.otpList.pop(name)
-            self.lock.acquire()
-            self.cur.execute('''delete from users where name == '%s' ''' % name)
-            self.con.commit()
-            self.lock.release()
+    def updateUser(self, json):
+        self.lock.acquire()
+        cmd = '''update users set zone = '%s', activated = %d, expireDate = %d where name == '%s' ''' % (json['zone'], json['activated'], json['expDate'], json['name'])
+        self.cur.execute('''update users set zone = '%s', activated = %d, expireDate = %d where name == '%s' ''' % (json['zone'], json['activated'], json['expDate'], json['name']))
+        self.con.commit()
+        self.lock.release()
 
-    def verifyEnabledUser(self, request, path):
-        user = self.getUserByToken(request.headers['token'])
-        if not user[3] or user == None:
+    def deactivateUser(self, name):
+        self.lock.acquire()
+        self.cur.execute('''update users set activated = 0 where name == '%s' ''' % name)
+        self.con.commit()
+        self.cur.execute('''select * from users where name == '%s' ''' % name)
+        user = self.cur.fetchone()
+        self.lock.release()
+        if user != None and user[2] == 0:
+            return True
+        return False
+
+    def verifyActivatedUser(self, request, path):
+        user = self.getUserByName(request.json['name'])
+        if user == None or not user[2]:
             return False
-        return self.verifyAuthentication(request, user, path)
+        #return self.verifyAuthentication(request, user, path)
+        return True
 
     def verifyAdmin(self, request, path):
-        user = self.getUserByToken(request.headers['token'])
-        if user[1] != 'admin' or user == None:
+        user = self.getUserByName(request.json['name'])
+        if user == None or user[1] != 'admin':
             return False
-        return self.verifyAuthentication(request, user, path)
+        #return self.verifyAuthentication(request, user, path)
+        return True
 
     def verifyAuthentication(self, request, user, path):
         nonce = request.headers['nonce']
@@ -128,4 +113,13 @@ class DB():
         self.cur.execute('''delete from users where name == '%s' ''' % name)
         self.con.commit()
         self.lock.release()
+
+    def findToken(self, token):
+        self.lock.acquire()
+        self.cur.execute('''select * from users where token = '%s' ''' % token)
+        user = self.cur.fetchone()
+        self.lock.release()
+        if user == None:
+            return False
+        return True
 
