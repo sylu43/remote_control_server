@@ -60,7 +60,11 @@ class DB():
         user = self.getUserByName(request.json['name'])
         if user == None or not user[2]:
             return False
-        return self.verifyAuthentication(request, user, path)
+        if not self.verifyAuthentication(request, user, path):
+            return False
+        nonce = float(request.headers['nonce'])
+        if nonce > user[3] or (time.time() - nonce) > 10:
+            return False
         return True
 
     def verifyAdmin(self, request, path):
@@ -68,7 +72,6 @@ class DB():
         if user == None or user[1] != 'admin':
             return False
         return self.verifyAuthentication(request, user, path)
-        return True
 
     def verifyAuthentication(self, request, user, path):
         nonce = request.headers['nonce']
