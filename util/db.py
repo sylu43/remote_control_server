@@ -1,6 +1,6 @@
 import sqlite3
 import os
-import datetime
+import time
 import jwt
 import hmac
 import binascii
@@ -23,7 +23,7 @@ class DB():
         #check users table
         self.cur.execute('''select count(name) from sqlite_master where type='table' and name='users' ''')
         if self.cur.fetchone()[0] == 0:
-            self.cur.execute('''create table users(name text, zone text, activated int2, expireDate real, token text)''')
+            self.cur.execute('''create table users(name text, zone text, activated int2, expDate real, token text)''')
 
         #check logs table
         self.cur.execute('''select count(name) from sqlite_master where type='table' and name='logs' ''')
@@ -37,46 +37,24 @@ class DB():
         self.lock.release()
         return user
 
-    def registerUser(self, json):
+    def registerUser(self, user):
         while True:
             token = str(floor(random.random()*1000000)).zfill(6)
             if not self.findToken(token):
                 break
-        cmd = '''insert into users values ('%s', '%s', %d, %d, '%s')''' % (json['name'], json['zone'], 0, 0, token)
+        cmd = '''insert into users values ('%s', '%s', %d, %d, '%s')''' % (user['name'], user['zone'], -1, int(time.time()), token)
         self.lock.acquire()
         self.cur.execute(cmd)
         self.con.commit()
         self.lock.release()
         return token
 
-    def activateUser(self, name, time):
+    def updateUser(self, guest):
         self.lock.acquire()
-        self.cur.execute('''update users set activated = 1 where name == '%s' ''' % name)
-        self.con.commit()
-        self.cur.execute('''select * from users where name == '%s' ''' % name)
-        user = self.cur.fetchone()
-        self.lock.release()
-        if user != None and user[2] == 1:
-            return True
-        return False
-
-    def updateUser(self, json):
-        self.lock.acquire()
-        cmd = '''update users set zone = '%s', activated = %d, expireDate = %d where name == '%s' ''' % (json['zone'], json['activated'], json['expDate'], json['name'])
-        self.cur.execute('''update users set zone = '%s', activated = %d, expireDate = %d where name == '%s' ''' % (json['zone'], json['activated'], json['expDate'], json['name']))
+        cmd = '''update users set zone = '%s', activated = %d, expDate = %d where name == '%s' ''' % (guest['zone'], guest['activated'], guest['expDate'], guest['name'])
+        self.cur.execute('''update users set zone = '%s', activated = %d, expDate = %d where name == '%s' ''' % (guest['zone'], guest['activated'], guest['expDate'], guest['name']))
         self.con.commit()
         self.lock.release()
-
-    def deactivateUser(self, name):
-        self.lock.acquire()
-        self.cur.execute('''update users set activated = 0 where name == '%s' ''' % name)
-        self.con.commit()
-        self.cur.execute('''select * from users where name == '%s' ''' % name)
-        user = self.cur.fetchone()
-        self.lock.release()
-        if user != None and user[2] == 0:
-            return True
-        return False
 
     def verifyActivatedUser(self, request, path):
         user = self.getUserByName(request.json['name'])

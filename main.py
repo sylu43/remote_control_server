@@ -10,6 +10,7 @@ gpioDict = conf['GPIO']
 
 '''
 {
+    'name': ${name},
     'op': ${op}
 }
 '''
@@ -30,38 +31,25 @@ def gateOp():
 '''
 {
     'name': ${name},
-    'guest': ${guest}
+    'guest': ${
+        'name': ${name},
+        'zone': ${zone},
+        'activated': ${activate},
+        'expDate': ${expDate}
+    }
 }
 '''
 @app.post("/update")
-def activate():
+def update():
     if not request.is_json:
         return {"error": "Request must be JSON"}, 415
     if not DB.verifyAdmin(request, "/update"):
         return {'error': "not admin"}, 403
     try:
-        DB.updateUser(request.json)
+        DB.updateUser(request.json['guest'])
     except:
         return {"error": "sqlite error"}, 500
     return {"info": "activated"}, 201
-
-'''
-{
-    'name': ${name},
-    'guest': ${guest}
-}
-'''
-@app.post("/deactivate")
-def deactivate():
-    if not request.is_json:
-        return {"error": "Request must be JSON"}, 415
-    if not DB.verifyAdmin(request, "/deactivate"):
-        return {'error': "not admin"}, 403
-    try:
-        DB.deactivateUser(request.json['guest'])
-    except:
-        return {"error": "sqlite error"}, 500
-    return {"info": "deactivated"}, 201
 
 '''
 {
@@ -74,11 +62,11 @@ def deactivate():
 def register():
     if not request.is_json:
         return {"error": "Request must be JSON"}, 415
-    json = request.json
-    if DB.getUserByName(json['name']) != None:
+    user = request.json
+    if DB.getUserByName(user['name']) != None:
         return {"error": "user exists"}, 409
     try:
-        token = DB.registerUser(json)
+        token = DB.registerUser(user)
     except:
         return {"error": "sqlite error"}, 500
     return {"info": "registered", "token": token}, 201
@@ -88,7 +76,6 @@ def register():
     'name': ${name}
 }
 '''
-
 @app.post("/list")
 def admin():
     if not request.is_json:
@@ -101,10 +88,18 @@ def admin():
             "name": user[0],
             "zone": user[1],
             "activated": user[2],
-            "expireDate": user[3]
+            "expDate": user[3]
         })
     return {"users":users}, 200
 
+'''
+{
+    'name': ${name},
+    'guest': ${
+        'name': ${name}
+    }
+}
+'''
 @app.post("/delete")
 def delete():
     if not request.is_json:
@@ -113,7 +108,7 @@ def delete():
         return {'error': "not admin"}, 403
     name = request.json['name']
     try:
-        DB.deleteUser(name)
+        DB.deleteUser(request.json['guest']['name'])
     except:
         return {"error": "sqlite error"}, 500
     return {"info": "delete"}, 200
