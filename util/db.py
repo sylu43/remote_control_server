@@ -60,22 +60,22 @@ class DB():
         user = self.getUserByName(request.json['name'])
         if user == None or not user[2]:
             return False
-        #return self.verifyAuthentication(request, user, path)
+        return self.verifyAuthentication(request, user, path)
         return True
 
     def verifyAdmin(self, request, path):
         user = self.getUserByName(request.json['name'])
         if user == None or user[1] != 'admin':
             return False
-        #return self.verifyAuthentication(request, user, path)
+        return self.verifyAuthentication(request, user, path)
         return True
 
     def verifyAuthentication(self, request, user, path):
         nonce = request.headers['nonce']
         body = {} if request.method == 'GET' else request.json
-        HMAC = hmac.new(bytearray.fromhex(user[6]), digestmod='sha256')
+        HMAC = hmac.new(user[4].encode('utf-8'), digestmod='sha256')
         HMAC.update(("%s%s%s" % (path, nonce, str(body).replace(" ","").replace("\'","\""))).encode('utf-8'))
-        if binascii.hexlify(HMAC.digest()).decode() != request.headers['Signature']:
+        if binascii.hexlify(HMAC.digest()).decode() != request.headers['signature']:
             return False
         return True
 

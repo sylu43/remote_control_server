@@ -63,6 +63,7 @@ def register():
     if not request.is_json:
         return {"error": "Request must be JSON"}, 415
     user = request.json
+    user['name'] = user['name'].replace(" ","")
     if DB.getUserByName(user['name']) != None:
         return {"error": "user exists"}, 409
     try:
