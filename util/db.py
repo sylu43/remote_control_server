@@ -7,6 +7,7 @@ import binascii
 import random
 from math import floor
 from threading import Lock
+from operator import itemgetter
 
 class DB():
 
@@ -87,6 +88,7 @@ class DB():
         self.cur.execute('''select * from users ''')
         users = self.cur.fetchall()
         self.lock.release()
+        users = sorted(users, key=itemgetter(2, 3), reverse=True)
         return users
 
     def deleteUser(self, name):
