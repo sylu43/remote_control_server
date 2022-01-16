@@ -129,9 +129,8 @@ def delete():
     if not DB.verifyAdmin(request, "/delete"):
         logging.warning("{}".format(request.json))
         return {'error': "not admin"}, 403
-    name = request.json['name']
     try:
-        DB.deleteUser(request.json['guest']['name'])
+        DB.deleteUser(request.json['guest'])
     except:
         logging.error("{}".format(request.json))
         return {"error": "sqlite error"}, 500
