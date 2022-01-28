@@ -40,7 +40,7 @@ class DB():
 
     def registerUser(self, user):
         while True:
-            token = str(floor(random.random()*1000000)).zfill(6)
+            token = str(floor(random.random()*100000000)).zfill(8)
             if not self.findToken(token):
                 break
         cmd = '''insert into users values ('%s', '%s', %d, %d, '%s')''' % (user['name'], user['zone'], -1, int(time.time()), token)
