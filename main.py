@@ -8,9 +8,9 @@ app = Flask(__name__)
 DB = db.DB()
 conf = util.getConf()
 gpioDict = conf['GPIO']
+gpio.setupGPIO(conf)
 
 app.logger.disabled = True
-#logging.getLogger('werkzeug').disabled = True
 logging.basicConfig(format='%(asctime)s %(message)s', filename='files/log.txt', level=logging.INFO)
 
 '''
@@ -28,7 +28,7 @@ def gateOp():
     if not DB.verifyActivatedUser(request, "/gate_op"):
         logging.warning("{}".format(request.json))
         return {"error": "Authentication failed or not enabled."}, 403
-    pin = gpioDict[op]
+    pin = int(gpioDict[op])
     if pin != None:
         gpio.gateOp(pin)
         logging.info("{}".format(request.json))

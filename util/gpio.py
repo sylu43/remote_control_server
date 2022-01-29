@@ -1,16 +1,15 @@
-#import RPi.GPIO as gpio
+import time
+import RPi.GPIO as gpio
 
-'''
-comment out since not on board yet
-def setupGPIO():
-    for conf in gpioConf:
-        gpio.setup(conf, gpio.OUT)
-        gpio.output(conf, gpio.HIGH)
-'''
+def setupGPIO(gpioConf):
+    gpio.cleanup()
+    gpio.setmode(gpio.BCM)
+    for (key, val) in gpioConf.items('GPIO'):
+        gpio.setup(int(val), gpio.OUT)
+        gpio.output(int(val), gpio.HIGH)
 
 def gateOp(pin):
-    print(pin)
-    #gpio.output(pin, gpio.LOW)
-    #time.sleep(2)
-    #gpio.output(pin , gpio.HIGH)
+    gpio.output(pin, gpio.LOW)
+    time.sleep(0.2)
+    gpio.output(pin , gpio.HIGH)
 
