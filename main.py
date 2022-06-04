@@ -11,7 +11,7 @@ gpioDict = conf['GPIO']
 gpio.setupGPIO(conf)
 
 app.logger.disabled = True
-logging.basicConfig(format='%(asctime)s %(message)s', filename='files/log.txt', level=logging.INFO)
+logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
 
 '''
 {
@@ -19,7 +19,7 @@ logging.basicConfig(format='%(asctime)s %(message)s', filename='files/log.txt', 
     'op': ${op}
 }
 '''
-@app.post("/gate_op")
+@app.route("/gate_op", methods=["POST"])
 def gateOp():
     if not request.is_json:
         logging.warning("wierd stuff")
@@ -48,7 +48,7 @@ def gateOp():
     }
 }
 '''
-@app.post("/update")
+@app.route("/update", methods=["POST"])
 def update():
     if not request.is_json:
         logging.warning("wierd stuff")
@@ -71,7 +71,7 @@ def update():
     'time': ${time in seconds}
 }
 '''
-@app.post("/register")
+@app.route("/register", methods=["POST"])
 def register():
     if not request.is_json:
         logging.warning("wierd stuff")
@@ -94,7 +94,7 @@ def register():
     'name': ${name}
 }
 '''
-@app.post("/list")
+@app.route("/list", methods=["POST"])
 def admin():
     if not request.is_json:
         logging.warning("wierd stuff")
@@ -121,7 +121,7 @@ def admin():
     }
 }
 '''
-@app.post("/delete")
+@app.route("/delete", methods=["POST"])
 def delete():
     if not request.is_json:
         logging.warning("wierd stuff")
